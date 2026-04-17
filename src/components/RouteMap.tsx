@@ -46,7 +46,6 @@ export function RouteMap({ points, className, highlightLeg = "all" }: RouteMapPr
       zoomControl: false,
       attributionControl: true,
       scrollWheelZoom: false,
-      tap: true,
     }).setView([-23.5505, -46.6333], 12);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
