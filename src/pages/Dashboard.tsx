@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Calendar, MapPin, Plus, TrendingUp, Wallet } from "lucide-react";
+import { ArrowRight, Calendar, MapPin, Plus, TrendingUp, Users, Wallet } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useRides } from "@/hooks/useRides";
 import { formatBRL } from "@/lib/geo";
@@ -101,10 +101,15 @@ export default function Dashboard() {
                   </div>
                   <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
                     <MapPin className="h-3.5 w-3.5 text-warning" />
-                    <span className="truncate">{ride.pickup.address}</span>
+                    <span className="truncate">{ride.pickups[0]?.address ?? "—"}</span>
                     <ArrowRight className="h-3 w-3 shrink-0" />
                     <span className="truncate">{ride.destination.address}</span>
                   </div>
+                  {ride.pickups.length > 1 && (
+                    <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning">
+                      <Users className="h-3 w-3" /> +{ride.pickups.length - 1} parada{ride.pickups.length - 1 > 1 ? "s" : ""}
+                    </div>
+                  )}
                 </Link>
               </li>
             ))}

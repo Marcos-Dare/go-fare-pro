@@ -1,18 +1,36 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, ExternalLink, Flag, MapPin, Navigation, Phone, User } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ExternalLink, Flag, Navigation, User } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { RouteMap } from "@/components/RouteMap";
+import { RouteMap, type RoutePoint } from "@/components/RouteMap";
 import { useRides } from "@/hooks/useRides";
 import { formatBRL, formatKm } from "@/lib/geo";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { getDirections } from "@/lib/googleMaps";
+import type { LatLng } from "@/types/ride";
 
 export default function ActiveRide() {
   const nav = useNavigate();
   const { id = "" } = useParams();
-  const { rides, setStatus } = useRides();
+  const { rides, setStatus, updateRide } = useRides();
   const ride = useMemo(() => rides.find((r) => r.id === id), [rides, id]);
+
+  const [path, setPath] = useState<LatLng[] | undefined>(undefined);
+
+  // Fetch full route polyline once for visualization
+  useEffect(() => {
+    if (!ride) return;
+    let cancelled = false;
+    getDirections(
+      ride.origin.coords,
+      ride.pickups.map((p) => p.coords),
+      ride.destination.coords
+    )
+      .then((res) => { if (!cancelled) setPath(res.path); })
+      .catch(() => { /* fallback to straight segments */ });
+    return () => { cancelled = true; };
+  }, [ride?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!ride) {
     return (
@@ -25,20 +43,33 @@ export default function ActiveRide() {
     );
   }
 
-  const phase: "pickup" | "trip" =
-    ride.status === "ongoing" ? "trip" : "pickup";
+  const isCompleted = ride.status === "completed";
+  const phase: "pickup" | "trip" = ride.status === "ongoing" ? "trip" : "pickup";
+  const pickupIdx = Math.min(ride.currentPickupIndex ?? 0, ride.pickups.length - 1);
+  const totalPickups = ride.pickups.length;
 
-  const target = phase === "pickup" ? ride.pickup : ride.destination;
+  const target =
+    phase === "trip"
+      ? ride.destination
+      : ride.pickups[pickupIdx];
 
   function openExternal() {
+    // Build a Google Maps directions URL from current target only — single nav target for safety while driving
     const url = `https://www.google.com/maps/dir/?api=1&destination=${target.coords.lat},${target.coords.lng}&travelmode=driving`;
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
   function advance() {
     if (ride!.status === "scheduled" || ride!.status === "pickup") {
-      setStatus(ride!.id, "ongoing");
-      toast.success("Cliente embarcado. Boa viagem!");
+      // Move to next pickup, or transition to trip after the last pickup
+      const next = pickupIdx + 1;
+      if (next < totalPickups) {
+        updateRide(ride!.id, { status: "pickup", currentPickupIndex: next });
+        toast.success(`Coleta ${pickupIdx + 1} embarcada. Próxima: ${next + 1} de ${totalPickups}.`);
+      } else {
+        updateRide(ride!.id, { status: "ongoing", currentPickupIndex: pickupIdx });
+        toast.success("Todos embarcados. Boa viagem!");
+      }
     } else if (ride!.status === "ongoing") {
       setStatus(ride!.id, "completed");
       toast.success(`Corrida finalizada! ${formatBRL(ride!.price)}`);
@@ -46,7 +77,20 @@ export default function ActiveRide() {
     }
   }
 
-  const isCompleted = ride.status === "completed";
+  const advanceLabel =
+    phase === "trip"
+      ? "Finalizar"
+      : pickupIdx + 1 < totalPickups
+      ? `Embarcou (próx. B${pickupIdx + 2})`
+      : "Cliente embarcou";
+
+  const mapPoints: RoutePoint[] = [
+    { coords: ride.origin.coords, label: ride.origin.address, kind: "origin" },
+    ...ride.pickups.map((p, i) => ({
+      coords: p.coords, label: p.address, kind: "pickup" as const, index: i + 1,
+    })),
+    { coords: ride.destination.coords, label: ride.destination.address, kind: "destination" },
+  ];
 
   return (
     <AppShell>
@@ -62,6 +106,7 @@ export default function ActiveRide() {
           <h1 className="truncate text-base font-semibold leading-tight">{ride.clientName}</h1>
           <p className="text-xs text-muted-foreground">
             {new Date(ride.scheduledAt).toLocaleString("pt-BR", { weekday: "short", hour: "2-digit", minute: "2-digit" })}
+            {totalPickups > 1 && <span className="ml-1.5 text-warning">· {totalPickups} paradas</span>}
           </p>
         </div>
         <div className="text-right">
@@ -71,15 +116,7 @@ export default function ActiveRide() {
       </header>
 
       <div className="overflow-hidden">
-        <RouteMap
-          className="h-72 w-full"
-          highlightLeg={isCompleted ? "all" : phase}
-          points={[
-            { coords: ride.origin.coords, label: ride.origin.address, kind: "origin" },
-            { coords: ride.pickup.coords, label: ride.pickup.address, kind: "pickup" },
-            { coords: ride.destination.coords, label: ride.destination.address, kind: "destination" },
-          ]}
-        />
+        <RouteMap className="h-72 w-full" points={mapPoints} path={path} />
       </div>
 
       <div className="px-4 pt-5">
@@ -87,9 +124,7 @@ export default function ActiveRide() {
           <div
             className={cn(
               "relative overflow-hidden rounded-3xl border p-5 shadow-elevated",
-              phase === "pickup"
-                ? "border-warning/40 bg-warning/10"
-                : "border-primary/40 bg-primary/10"
+              phase === "pickup" ? "border-warning/40 bg-warning/10" : "border-primary/40 bg-primary/10"
             )}
           >
             <div className="flex items-center gap-3">
@@ -98,11 +133,13 @@ export default function ActiveRide() {
                 phase === "pickup" ? "bg-warning text-background" : "bg-primary text-primary-foreground"
               )}>
                 {phase === "pickup" ? <User className="h-5 w-5" strokeWidth={2.4} /> : <Flag className="h-5 w-5" strokeWidth={2.4} />}
-                <span className={cn("pulse-ring absolute inset-0 rounded-full")} />
+                <span className="pulse-ring absolute inset-0 rounded-full" />
               </div>
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  {phase === "pickup" ? "Status — Indo buscar" : "Status — Em viagem"}
+                  {phase === "pickup"
+                    ? `Status — Indo buscar B${pickupIdx + 1}${totalPickups > 1 ? ` (${pickupIdx + 1}/${totalPickups})` : ""}`
+                    : "Status — Em viagem ao destino"}
                 </p>
                 <p className="mt-0.5 truncate text-sm font-bold">{target.address}</p>
               </div>
@@ -122,16 +159,26 @@ export default function ActiveRide() {
 
         <div className="mt-5 space-y-2.5">
           <RouteRow color="bg-primary" tag="A" label="Saída" address={ride.origin.address} dim />
+          {ride.pickups.map((p, i) => {
+            const legKm = ride.legsKm[i] ?? 0;
+            const isCurrent = phase === "pickup" && i === pickupIdx && !isCompleted;
+            const passed = phase === "trip" || (phase === "pickup" && i < pickupIdx);
+            return (
+              <RouteRow
+                key={i}
+                color="bg-warning"
+                tag={`B${i + 1}`}
+                label={`Coleta ${i + 1} · ${formatKm(legKm)}`}
+                address={p.address}
+                active={isCurrent}
+                dim={passed}
+              />
+            );
+          })}
           <RouteRow
-            color="bg-warning" tag="B"
-            label={`Coleta · ${formatKm(ride.distancePickupKm)}`}
-            address={ride.pickup.address}
-            dim={phase === "trip"}
-            active={phase === "pickup" && !isCompleted}
-          />
-          <RouteRow
-            color="bg-info" tag="C"
-            label={`Destino · ${formatKm(ride.distanceTripKm)}`}
+            color="bg-info"
+            tag="C"
+            label={`Destino · ${formatKm(ride.legsKm[ride.legsKm.length - 1] ?? 0)}`}
             address={ride.destination.address}
             active={phase === "trip" && !isCompleted}
           />
@@ -142,6 +189,8 @@ export default function ActiveRide() {
             <span className="font-semibold text-foreground">Obs:</span> {ride.notes}
           </div>
         )}
+
+        <div className="h-32" />
       </div>
 
       {!isCompleted && (
@@ -160,7 +209,7 @@ export default function ActiveRide() {
               phase === "pickup" ? "bg-warning text-background" : "bg-primary text-primary-foreground"
             )}
           >
-            {phase === "pickup" ? (<><User className="h-4 w-4" /> Cliente embarcou</>) : (<><Flag className="h-4 w-4" /> Finalizar</>)}
+            {phase === "pickup" ? (<><User className="h-4 w-4" /> {advanceLabel}</>) : (<><Flag className="h-4 w-4" /> {advanceLabel}</>)}
           </button>
         </div>
       )}
@@ -177,7 +226,7 @@ function RouteRow({
       active ? "border-primary/50 bg-primary/5" : "border-border bg-card",
       dim && "opacity-60"
     )}>
-      <div className={cn("mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-background", color)}>
+      <div className={cn("mt-0.5 flex h-7 min-w-[1.75rem] shrink-0 items-center justify-center rounded-full px-1 text-xs font-bold text-background", color)}>
         {tag}
       </div>
       <div className="min-w-0 flex-1">

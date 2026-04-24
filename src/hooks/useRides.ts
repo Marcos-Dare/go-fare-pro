@@ -1,13 +1,48 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Ride, RideStatus } from "@/types/ride";
+import type { Ride, RidePoint, RideStatus } from "@/types/ride";
 
 const STORAGE_KEY = "drivercalc.rides.v1";
 const RATE_KEY = "drivercalc.rate.v1";
 
+// Migrate legacy rides (single pickup field) to new shape with pickups[]
+function migrate(raw: any): Ride {
+  if (Array.isArray(raw.pickups)) {
+    return {
+      ...raw,
+      legsKm: Array.isArray(raw.legsKm)
+        ? raw.legsKm
+        : [raw.distancePickupKm ?? 0, raw.distanceTripKm ?? 0],
+    } as Ride;
+  }
+  const pickup: RidePoint | undefined = raw.pickup;
+  const pickups: RidePoint[] = pickup ? [pickup] : [];
+  return {
+    id: raw.id,
+    clientName: raw.clientName,
+    scheduledAt: raw.scheduledAt,
+    origin: raw.origin,
+    pickups,
+    destination: raw.destination,
+    ratePerKm: raw.ratePerKm,
+    legsKm: [raw.distancePickupKm ?? 0, raw.distanceTripKm ?? 0],
+    distancePickupKm: raw.distancePickupKm ?? 0,
+    distanceTripKm: raw.distanceTripKm ?? 0,
+    totalKm: raw.totalKm ?? 0,
+    price: raw.price ?? 0,
+    status: raw.status,
+    currentPickupIndex: raw.currentPickupIndex,
+    notes: raw.notes,
+    createdAt: raw.createdAt,
+    completedAt: raw.completedAt,
+  };
+}
+
 function read(): Ride[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Ride[]) : [];
+    if (!raw) return [];
+    const arr = JSON.parse(raw) as any[];
+    return arr.map(migrate);
   } catch {
     return [];
   }
@@ -47,8 +82,8 @@ export function useRides() {
     write(read().filter((r) => r.id !== id));
   }, []);
 
-  const setStatus = useCallback((id: string, status: RideStatus) => {
-    const patch: Partial<Ride> = { status };
+  const setStatus = useCallback((id: string, status: RideStatus, extra?: Partial<Ride>) => {
+    const patch: Partial<Ride> = { status, ...extra };
     if (status === "completed") patch.completedAt = new Date().toISOString();
     const next = read().map((r) => (r.id === id ? { ...r, ...patch } : r));
     write(next);

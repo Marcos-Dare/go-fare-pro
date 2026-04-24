@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, CalendarDays, ChevronRight, MapPin, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronRight, MapPin, Trash2, Users } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useRides } from "@/hooks/useRides";
 import { formatBRL } from "@/lib/geo";
@@ -107,7 +107,12 @@ function RideCard({ ride, onDelete }: { ride: Ride; onDelete: () => void }) {
             <div className="mt-2 space-y-1 text-xs text-muted-foreground">
               <div className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-warning" />
-                <span className="truncate">{ride.pickup.address}</span>
+                <span className="truncate">{ride.pickups[0]?.address ?? "—"}</span>
+                {ride.pickups.length > 1 && (
+                  <span className="ml-1 inline-flex items-center gap-0.5 rounded-full bg-warning/15 px-1.5 py-0.5 text-[9px] font-bold text-warning">
+                    <Users className="h-2.5 w-2.5" /> +{ride.pickups.length - 1}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-info" />

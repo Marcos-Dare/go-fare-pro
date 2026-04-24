@@ -101,18 +101,9 @@
   .tabular { font-variant-numeric: tabular-nums; }
 }
 
-/* Leaflet map dark theme tweaks */
-.leaflet-container {
-  background: hsl(var(--muted)) !important;
-  font-family: inherit;
-}
-.leaflet-control-attribution {
-  background: hsl(var(--card) / 0.8) !important;
-  color: hsl(var(--muted-foreground)) !important;
-  font-size: 10px !important;
-}
-.leaflet-control-attribution a { color: hsl(var(--primary)) !important; }
-.leaflet-tile { filter: brightness(0.7) invert(1) contrast(0.9) hue-rotate(180deg) saturate(0.6) brightness(0.9); }
+/* Google Maps dark theme tweaks */
+.gm-style { font-family: inherit !important; }
+.gm-style-cc { background: hsl(var(--card) / 0.85) !important; }
 
 @keyframes pulse-ring {
   0% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.6); }
