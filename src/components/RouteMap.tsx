@@ -70,9 +70,9 @@ export function RouteMap({ points, path, className, activeLegToIndex = null }: R
     let cancelled = false;
     if (!containerRef.current) return;
 
-    loadGoogleMaps().then((g) => {
+    loadGoogleMaps().then(() => {
       if (cancelled || !containerRef.current || mapRef.current) return;
-      mapRef.current = new g.maps.Map(containerRef.current, {
+      mapRef.current = new google.maps.Map(containerRef.current, {
         center: { lat: -23.5505, lng: -46.6333 },
         zoom: 12,
         disableDefaultUI: true,
@@ -101,7 +101,7 @@ export function RouteMap({ points, path, className, activeLegToIndex = null }: R
   // Render markers + polylines
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !window.google) return;
+    if (!map || typeof google === "undefined") return;
 
     // Clear previous
     markersRef.current.forEach((m) => m.setMap(null));
@@ -113,7 +113,7 @@ export function RouteMap({ points, path, className, activeLegToIndex = null }: R
 
     if (points.length === 0) return;
 
-    const g = window.google;
+    const g = google;
 
     // Markers
     points.forEach((p) => {
