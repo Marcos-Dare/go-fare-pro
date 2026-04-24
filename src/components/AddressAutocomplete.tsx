@@ -37,9 +37,9 @@ export function AddressAutocomplete({
   useEffect(() => {
     let cancelled = false;
     loadGoogleMaps()
-      .then((g) => {
+      .then(() => {
         if (cancelled || !inputRef.current || acRef.current) return;
-        const ac = new g.maps.places.Autocomplete(inputRef.current, {
+        const ac = new google.maps.places.Autocomplete(inputRef.current, {
           fields: ["place_id", "formatted_address", "geometry", "name"],
           componentRestrictions: { country: ["br"] },
         });

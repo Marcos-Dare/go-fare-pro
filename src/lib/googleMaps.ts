@@ -3,9 +3,9 @@ import type { LatLng } from "@/types/ride";
 
 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 
-let loaderPromise: Promise<typeof google> | null = null;
+let loaderPromise: Promise<typeof google.maps> | null = null;
 
-export function loadGoogleMaps(): Promise<typeof google> {
+export function loadGoogleMaps(): Promise<typeof google.maps> {
   if (!apiKey) {
     return Promise.reject(
       new Error("VITE_GOOGLE_MAPS_API_KEY ausente. Configure no arquivo .env.")
@@ -19,7 +19,15 @@ export function loadGoogleMaps(): Promise<typeof google> {
       language: "pt-BR",
       region: "BR",
     });
-    loaderPromise = loader.load();
+    loaderPromise = (async () => {
+      await Promise.all([
+        loader.importLibrary("maps"),
+        loader.importLibrary("places"),
+        loader.importLibrary("geometry"),
+        loader.importLibrary("routes"),
+      ]);
+      return google.maps;
+    })();
   }
   return loaderPromise;
 }
@@ -46,14 +54,14 @@ export async function getDirections(
   pickups: LatLng[],
   destination: LatLng
 ): Promise<DirectionsResult> {
-  const g = await loadGoogleMaps();
-  const svc = new g.maps.DirectionsService();
+  await loadGoogleMaps();
+  const svc = new google.maps.DirectionsService();
 
   const res = await svc.route({
     origin,
     destination,
     waypoints: pickups.map((p) => ({ location: p, stopover: true })),
-    travelMode: g.maps.TravelMode.DRIVING,
+    travelMode: google.maps.TravelMode.DRIVING,
     optimizeWaypoints: false,
     region: "br",
   });
@@ -74,8 +82,8 @@ export async function getDirections(
 }
 
 export async function reverseGeocode(coords: LatLng): Promise<string> {
-  const g = await loadGoogleMaps();
-  const geocoder = new g.maps.Geocoder();
+  await loadGoogleMaps();
+  const geocoder = new google.maps.Geocoder();
   const res = await geocoder.geocode({ location: coords, language: "pt-BR" });
   return res.results[0]?.formatted_address ?? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
 }
