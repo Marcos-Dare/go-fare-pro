@@ -1,8 +1,9 @@
-import { Loader } from "@googlemaps/js-api-loader";
+import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import type { LatLng } from "@/types/ride";
 
 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 
+let initialized = false;
 let loaderPromise: Promise<typeof google.maps> | null = null;
 
 export function loadGoogleMaps(): Promise<typeof google.maps> {
@@ -12,19 +13,22 @@ export function loadGoogleMaps(): Promise<typeof google.maps> {
     );
   }
   if (!loaderPromise) {
-    const loader = new Loader({
-      apiKey,
-      version: "weekly",
-      libraries: ["places", "routes", "marker", "geometry"],
-      language: "pt-BR",
-      region: "BR",
-    });
+    if (!initialized) {
+      setOptions({
+        key: apiKey,
+        v: "weekly",
+        libraries: ["places", "routes", "marker", "geometry"],
+        language: "pt-BR",
+        region: "BR",
+      });
+      initialized = true;
+    }
     loaderPromise = (async () => {
       await Promise.all([
-        loader.importLibrary("maps"),
-        loader.importLibrary("places"),
-        loader.importLibrary("geometry"),
-        loader.importLibrary("routes"),
+        importLibrary("maps"),
+        importLibrary("places"),
+        importLibrary("geometry"),
+        importLibrary("routes"),
       ]);
       return google.maps;
     })();
@@ -47,7 +51,6 @@ export interface DirectionsResult {
 
 /**
  * Calls Directions API for ordered waypoints: origin -> pickups[] -> destination.
- * Returns per-leg distances in km and the decoded polyline path.
  */
 export async function getDirections(
   origin: LatLng,
