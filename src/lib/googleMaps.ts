@@ -1,9 +1,9 @@
-import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
+import { Loader } from "@googlemaps/js-api-loader";
 import type { LatLng } from "@/types/ride";
 
 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 
-let initialized = false;
+let loader: Loader | null = null;
 let loaderPromise: Promise<typeof google.maps> | null = null;
 
 export function loadGoogleMaps(): Promise<typeof google.maps> {
@@ -13,22 +13,21 @@ export function loadGoogleMaps(): Promise<typeof google.maps> {
     );
   }
   if (!loaderPromise) {
-    if (!initialized) {
-      setOptions({
+    if (!loader) {
+      loader = new Loader({
         key: apiKey,
         v: "weekly",
-        libraries: ["places", "routes", "marker", "geometry"],
+        libraries: ["places", "marker", "geometry", "routes"],
         language: "pt-BR",
         region: "BR",
       });
-      initialized = true;
     }
     loaderPromise = (async () => {
       await Promise.all([
-        importLibrary("maps"),
-        importLibrary("places"),
-        importLibrary("geometry"),
-        importLibrary("routes"),
+        loader!.importLibrary("maps"),
+        loader!.importLibrary("places"),
+        loader!.importLibrary("geometry"),
+        loader!.importLibrary("routes"),
       ]);
       return google.maps;
     })();
