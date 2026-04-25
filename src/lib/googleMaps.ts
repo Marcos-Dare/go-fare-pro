@@ -17,7 +17,6 @@ export function loadGoogleMaps(): Promise<typeof google.maps> {
       setOptions({
         key: apiKey,
         v: "weekly",
-        libraries: ["places", "routes", "marker", "geometry"],
         language: "pt-BR",
         region: "BR",
       });
