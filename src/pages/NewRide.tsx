@@ -31,7 +31,7 @@ export default function NewRide() {
 
   const [clientName, setClientName] = useState("");
   const [origin, setOrigin] = useState<RidePoint | null>(null);
-  const [pickups, setPickups] = useState<(RidePoint | null)[]>([null]);
+  const [pickups, setPickups] = useState<(RidePoint | null)[]>([]);
   const [destination, setDestination] = useState<RidePoint | null>(null);
   const [scheduledAt, setScheduledAt] = useState(nowLocalInput());
   const [notes, setNotes] = useState("");
