@@ -104,7 +104,7 @@ export default function NewRide() {
     setPickups((prev) => [...prev, null]);
   }
   function removePickup(index: number) {
-    setPickups((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
+    setPickups((prev) => prev.filter((_, i) => i !== index));
   }
   function move(index: number, dir: -1 | 1) {
     setPickups((prev) => {
