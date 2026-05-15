@@ -101,7 +101,7 @@ export default function Dashboard() {
                   </div>
                   <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
                     <MapPin className="h-3.5 w-3.5 text-warning" />
-                    <span className="truncate">{ride.pickups[0]?.address ?? "—"}</span>
+                    <span className="truncate">{ride.pickups.length > 0 ? ride.pickups[0]?.address : ride.origin.address}</span>
                     <ArrowRight className="h-3 w-3 shrink-0" />
                     <span className="truncate">{ride.destination.address}</span>
                   </div>

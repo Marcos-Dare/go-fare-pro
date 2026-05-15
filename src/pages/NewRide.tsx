@@ -31,7 +31,7 @@ export default function NewRide() {
 
   const [clientName, setClientName] = useState("");
   const [origin, setOrigin] = useState<RidePoint | null>(null);
-  const [pickups, setPickups] = useState<(RidePoint | null)[]>([null]);
+  const [pickups, setPickups] = useState<(RidePoint | null)[]>([]);
   const [destination, setDestination] = useState<RidePoint | null>(null);
   const [scheduledAt, setScheduledAt] = useState(nowLocalInput());
   const [notes, setNotes] = useState("");
@@ -45,7 +45,7 @@ export default function NewRide() {
     () => pickups.filter((p): p is RidePoint => !!p),
     [pickups]
   );
-  const canRoute = !!origin && !!destination && validPickups.length === pickups.length && pickups.length > 0;
+  const canRoute = !!origin && !!destination && validPickups.length === pickups.length;
 
   const fingerprint = useMemo(() => {
     if (!canRoute || !origin || !destination) return "";
@@ -104,7 +104,7 @@ export default function NewRide() {
     setPickups((prev) => [...prev, null]);
   }
   function removePickup(index: number) {
-    setPickups((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
+    setPickups((prev) => prev.filter((_, i) => i !== index));
   }
   function move(index: number, dir: -1 | 1) {
     setPickups((prev) => {
@@ -215,7 +215,7 @@ export default function NewRide() {
                   <IconBtn onClick={() => move(i, 1)} disabled={i === pickups.length - 1} aria="Descer">
                     <ArrowDown className="h-3.5 w-3.5" />
                   </IconBtn>
-                  <IconBtn onClick={() => removePickup(i)} disabled={pickups.length === 1} aria="Remover" danger>
+                  <IconBtn onClick={() => removePickup(i)} aria="Remover" danger>
                     <Trash2 className="h-3.5 w-3.5" />
                   </IconBtn>
                 </div>
