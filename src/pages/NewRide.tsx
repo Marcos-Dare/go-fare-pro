@@ -215,7 +215,7 @@ export default function NewRide() {
                   <IconBtn onClick={() => move(i, 1)} disabled={i === pickups.length - 1} aria="Descer">
                     <ArrowDown className="h-3.5 w-3.5" />
                   </IconBtn>
-                  <IconBtn onClick={() => removePickup(i)} disabled={pickups.length === 1} aria="Remover" danger>
+                  <IconBtn onClick={() => removePickup(i)} aria="Remover" danger>
                     <Trash2 className="h-3.5 w-3.5" />
                   </IconBtn>
                 </div>
