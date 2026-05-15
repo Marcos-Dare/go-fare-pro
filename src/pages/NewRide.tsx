@@ -45,7 +45,7 @@ export default function NewRide() {
     () => pickups.filter((p): p is RidePoint => !!p),
     [pickups]
   );
-  const canRoute = !!origin && !!destination && validPickups.length === pickups.length && pickups.length > 0;
+  const canRoute = !!origin && !!destination && validPickups.length === pickups.length;
 
   const fingerprint = useMemo(() => {
     if (!canRoute || !origin || !destination) return "";
