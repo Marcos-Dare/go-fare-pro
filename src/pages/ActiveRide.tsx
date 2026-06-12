@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDirections } from "@/lib/googleMaps";
 import type { LatLng } from "@/types/ride";
+import { analytics } from "@/lib/observability";
 
 export default function ActiveRide() {
   const nav = useNavigate();
@@ -72,6 +73,23 @@ export default function ActiveRide() {
       }
     } else if (ride!.status === "ongoing") {
       setStatus(ride!.id, "completed");
+      analytics.rideCompleted({
+        rideId: ride!.id,
+        totalKm: ride!.totalKm,
+        price: ride!.price,
+        pickups: ride!.pickups.length,
+      });
+      // Solicita avaliações ao final da corrida
+      const driverRatingRaw = window.prompt("Avalie o motorista (1-5):", "5");
+      const driverRating = Number(driverRatingRaw);
+      if (driverRating >= 1 && driverRating <= 5) {
+        analytics.driverRated({ rideId: ride!.id, rating: driverRating });
+      }
+      const paxRatingRaw = window.prompt(`Avalie o passageiro ${ride!.clientName} (1-5):`, "5");
+      const paxRating = Number(paxRatingRaw);
+      if (paxRating >= 1 && paxRating <= 5) {
+        analytics.passengerRated({ rideId: ride!.id, passengerName: ride!.clientName, rating: paxRating });
+      }
       toast.success(`Corrida finalizada! ${formatBRL(ride!.price)}`);
       nav("/agenda");
     }

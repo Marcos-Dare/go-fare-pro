@@ -6,6 +6,7 @@ import { useRides } from "@/hooks/useRides";
 import { formatBRL } from "@/lib/geo";
 import { cn } from "@/lib/utils";
 import type { Ride } from "@/types/ride";
+import { analytics } from "@/lib/observability";
 
 const TABS = [
   { id: "upcoming", label: "Próximas" },
@@ -80,7 +81,19 @@ export default function Agenda() {
                 <ul className="space-y-2.5">
                   {items.map((ride) => (
                     <li key={ride.id}>
-                      <RideCard ride={ride} onDelete={() => deleteRide(ride.id)} />
+                      <RideCard
+                        ride={ride}
+                        onDelete={() => {
+                          if (ride.status !== "completed") {
+                            analytics.rideCancelled({
+                              rideId: ride.id,
+                              status: ride.status,
+                              reason: "deleted_from_agenda",
+                            });
+                          }
+                          deleteRide(ride.id);
+                        }}
+                      />
                     </li>
                   ))}
                 </ul>
