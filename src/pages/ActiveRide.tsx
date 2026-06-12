@@ -45,14 +45,15 @@ export default function ActiveRide() {
   }
 
   const isCompleted = ride.status === "completed";
-  const phase: "pickup" | "trip" = ride.status === "ongoing" ? "trip" : "pickup";
-  const pickupIdx = Math.min(ride.currentPickupIndex ?? 0, ride.pickups.length - 1);
   const totalPickups = ride.pickups.length;
+  const phase: "pickup" | "trip" =
+    ride.status === "ongoing" || totalPickups === 0 ? "trip" : "pickup";
+  const pickupIdx = totalPickups > 0
+    ? Math.min(ride.currentPickupIndex ?? 0, totalPickups - 1)
+    : 0;
 
   const target =
-    phase === "trip"
-      ? ride.destination
-      : ride.pickups[pickupIdx];
+    phase === "trip" ? ride.destination : ride.pickups[pickupIdx]!;
 
   function openExternal() {
     // Build a Google Maps directions URL from current target only — single nav target for safety while driving
@@ -62,6 +63,11 @@ export default function ActiveRide() {
 
   function advance() {
     if (ride!.status === "scheduled" || ride!.status === "pickup") {
+      if (totalPickups === 0) {
+        updateRide(ride!.id, { status: "ongoing", currentPickupIndex: 0 });
+        toast.success("Em viagem ao destino.");
+        return;
+      }
       // Move to next pickup, or transition to trip after the last pickup
       const next = pickupIdx + 1;
       if (next < totalPickups) {
