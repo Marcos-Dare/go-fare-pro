@@ -91,13 +91,13 @@ export function useRides() {
     const uid = userIdRef.current;
     if (!uid) return;
     const row = { ...rideToRow(ride), user_id: uid };
-    const { error } = await supabase.from("rides").insert(row);
+    const { error } = await supabase.from("rides").insert(row as any);
     if (error) console.error("[useRides] insert failed", error);
     await refresh();
   }, [refresh]);
 
   const updateRide = useCallback(async (id: string, patch: Partial<Ride>) => {
-    const { error } = await supabase.from("rides").update(rideToRow(patch)).eq("id", id);
+    const { error } = await supabase.from("rides").update(rideToRow(patch) as any).eq("id", id);
     if (error) console.error("[useRides] update failed", error);
     await refresh();
   }, [refresh]);
