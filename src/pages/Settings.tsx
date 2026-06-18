@@ -1,4 +1,4 @@
-import { ArrowLeft, Calculator, Github, Info } from "lucide-react";
+import { ArrowLeft, Calculator, Info, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { Input } from "@/components/ui/input";
@@ -6,11 +6,14 @@ import { Label } from "@/components/ui/label";
 import { useRatePerKm, useRides } from "@/hooks/useRides";
 import { formatBRL } from "@/lib/geo";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { resetUser } from "@/lib/observability";
 
 export default function Settings() {
   const nav = useNavigate();
   const [rate, setRate] = useRatePerKm();
-  const { rides } = useRides();
+  const { rides, deleteRide } = useRides();
+  const { user, signOut } = useAuth();
 
   return (
     <AppShell>
@@ -57,9 +60,9 @@ export default function Settings() {
         <button
           onClick={() => {
             if (confirm("Apagar TODAS as corridas? Esta ação é irreversível.")) {
-              localStorage.removeItem("drivercalc.rides.v1");
-              window.dispatchEvent(new Event("drivercalc:rides"));
-              toast.success("Histórico apagado.");
+              Promise.all(rides.map((r) => deleteRide(r.id))).then(() =>
+                toast.success("Histórico apagado.")
+              );
             }
           }}
           className="w-full rounded-2xl border border-destructive/30 bg-destructive/10 py-3 text-sm font-semibold text-destructive transition-smooth active:scale-[0.98]"
@@ -67,8 +70,19 @@ export default function Settings() {
           Limpar histórico
         </button>
 
+        <button
+          onClick={async () => {
+            await signOut();
+            resetUser();
+            nav("/auth", { replace: true });
+          }}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card py-3 text-sm font-semibold text-foreground transition-smooth active:scale-[0.98]"
+        >
+          <LogOut className="h-4 w-4" /> Sair
+        </button>
+
         <p className="flex items-center justify-center gap-1.5 pt-2 text-center text-[11px] text-muted-foreground">
-          <Info className="h-3 w-3" /> Dados salvos somente neste aparelho
+          <Info className="h-3 w-3" /> {user?.email ? `Conectado como ${user.email}` : "Dados sincronizados na nuvem"}
         </p>
       </div>
     </AppShell>
