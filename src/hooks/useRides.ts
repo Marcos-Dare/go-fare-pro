@@ -1,106 +1,157 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import type { Ride, RidePoint, RideStatus } from "@/types/ride";
 
-const STORAGE_KEY = "drivercalc.rides.v1";
-const RATE_KEY = "drivercalc.rate.v1";
-
-// Migrate legacy rides (single pickup field) to new shape with pickups[]
-function migrate(raw: any): Ride {
-  if (Array.isArray(raw.pickups)) {
-    return {
-      ...raw,
-      legsKm: Array.isArray(raw.legsKm)
-        ? raw.legsKm
-        : [raw.distancePickupKm ?? 0, raw.distanceTripKm ?? 0],
-    } as Ride;
-  }
-  const pickup: RidePoint | undefined = raw.pickup;
-  const pickups: RidePoint[] = pickup ? [pickup] : [];
+function rowToRide(row: any): Ride {
   return {
-    id: raw.id,
-    clientName: raw.clientName,
-    scheduledAt: raw.scheduledAt,
-    origin: raw.origin,
-    pickups,
-    destination: raw.destination,
-    ratePerKm: raw.ratePerKm,
-    legsKm: [raw.distancePickupKm ?? 0, raw.distanceTripKm ?? 0],
-    distancePickupKm: raw.distancePickupKm ?? 0,
-    distanceTripKm: raw.distanceTripKm ?? 0,
-    totalKm: raw.totalKm ?? 0,
-    price: raw.price ?? 0,
-    status: raw.status,
-    currentPickupIndex: raw.currentPickupIndex,
-    notes: raw.notes,
-    createdAt: raw.createdAt,
-    completedAt: raw.completedAt,
+    id: row.id,
+    clientName: row.client_name,
+    scheduledAt: row.scheduled_at,
+    origin: row.origin as RidePoint,
+    pickups: (row.pickups ?? []) as RidePoint[],
+    destination: row.destination as RidePoint,
+    ratePerKm: Number(row.rate_per_km ?? 0),
+    legsKm: (row.legs_km ?? []).map((n: any) => Number(n)),
+    distancePickupKm: Number(row.distance_pickup_km ?? 0),
+    distanceTripKm: Number(row.distance_trip_km ?? 0),
+    totalKm: Number(row.total_km ?? 0),
+    price: Number(row.price ?? 0),
+    status: row.status as RideStatus,
+    currentPickupIndex: row.current_pickup_index ?? undefined,
+    notes: row.notes ?? undefined,
+    createdAt: row.created_at,
+    completedAt: row.completed_at ?? undefined,
   };
 }
 
-function read(): Ride[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw) as any[];
-    return arr.map(migrate);
-  } catch {
-    return [];
-  }
-}
-
-function write(rides: Ride[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rides));
-  window.dispatchEvent(new Event("drivercalc:rides"));
+function rideToRow(ride: Partial<Ride>): Record<string, any> {
+  const row: Record<string, any> = {};
+  if (ride.id !== undefined) row.id = ride.id;
+  if (ride.clientName !== undefined) row.client_name = ride.clientName;
+  if (ride.scheduledAt !== undefined) row.scheduled_at = ride.scheduledAt;
+  if (ride.origin !== undefined) row.origin = ride.origin;
+  if (ride.pickups !== undefined) row.pickups = ride.pickups;
+  if (ride.destination !== undefined) row.destination = ride.destination;
+  if (ride.ratePerKm !== undefined) row.rate_per_km = ride.ratePerKm;
+  if (ride.legsKm !== undefined) row.legs_km = ride.legsKm;
+  if (ride.distancePickupKm !== undefined) row.distance_pickup_km = ride.distancePickupKm;
+  if (ride.distanceTripKm !== undefined) row.distance_trip_km = ride.distanceTripKm;
+  if (ride.totalKm !== undefined) row.total_km = ride.totalKm;
+  if (ride.price !== undefined) row.price = ride.price;
+  if (ride.status !== undefined) row.status = ride.status;
+  if (ride.currentPickupIndex !== undefined) row.current_pickup_index = ride.currentPickupIndex;
+  if (ride.notes !== undefined) row.notes = ride.notes;
+  if (ride.completedAt !== undefined) row.completed_at = ride.completedAt;
+  return row;
 }
 
 export function useRides() {
-  const [rides, setRides] = useState<Ride[]>(() => read());
+  const { user } = useAuth();
+  const [rides, setRides] = useState<Ride[]>([]);
+  const userIdRef = useRef<string | null>(null);
+  userIdRef.current = user?.id ?? null;
+
+  const refresh = useCallback(async () => {
+    if (!userIdRef.current) {
+      setRides([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("rides")
+      .select("*")
+      .order("scheduled_at", { ascending: true });
+    if (error) {
+      console.error("[useRides] fetch failed", error);
+      return;
+    }
+    setRides((data ?? []).map(rowToRide));
+  }, []);
 
   useEffect(() => {
-    const sync = () => setRides(read());
-    window.addEventListener("drivercalc:rides", sync);
-    window.addEventListener("storage", sync);
+    refresh();
+  }, [user?.id, refresh]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`rides-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "rides", filter: `user_id=eq.${user.id}` },
+        () => refresh()
+      )
+      .subscribe();
     return () => {
-      window.removeEventListener("drivercalc:rides", sync);
-      window.removeEventListener("storage", sync);
+      supabase.removeChannel(channel);
     };
-  }, []);
+  }, [user?.id, refresh]);
 
-  const addRide = useCallback((ride: Ride) => {
-    const next = [...read(), ride].sort(
-      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
-    );
-    write(next);
-  }, []);
+  const addRide = useCallback(async (ride: Ride) => {
+    const uid = userIdRef.current;
+    if (!uid) return;
+    const row = { ...rideToRow(ride), user_id: uid };
+    const { error } = await supabase.from("rides").insert(row as any);
+    if (error) console.error("[useRides] insert failed", error);
+    await refresh();
+  }, [refresh]);
 
-  const updateRide = useCallback((id: string, patch: Partial<Ride>) => {
-    const next = read().map((r) => (r.id === id ? { ...r, ...patch } : r));
-    write(next);
-  }, []);
+  const updateRide = useCallback(async (id: string, patch: Partial<Ride>) => {
+    const { error } = await supabase.from("rides").update(rideToRow(patch) as any).eq("id", id);
+    if (error) console.error("[useRides] update failed", error);
+    await refresh();
+  }, [refresh]);
 
-  const deleteRide = useCallback((id: string) => {
-    write(read().filter((r) => r.id !== id));
-  }, []);
+  const deleteRide = useCallback(async (id: string) => {
+    const { error } = await supabase.from("rides").delete().eq("id", id);
+    if (error) console.error("[useRides] delete failed", error);
+    await refresh();
+  }, [refresh]);
 
-  const setStatus = useCallback((id: string, status: RideStatus, extra?: Partial<Ride>) => {
-    const patch: Partial<Ride> = { status, ...extra };
-    if (status === "completed") patch.completedAt = new Date().toISOString();
-    const next = read().map((r) => (r.id === id ? { ...r, ...patch } : r));
-    write(next);
-  }, []);
+  const setStatus = useCallback(
+    async (id: string, status: RideStatus, extra?: Partial<Ride>) => {
+      const patch: Partial<Ride> = { status, ...extra };
+      if (status === "completed") patch.completedAt = new Date().toISOString();
+      await updateRide(id, patch);
+    },
+    [updateRide]
+  );
 
-  return { rides, addRide, updateRide, deleteRide, setStatus };
+  return { rides, addRide, updateRide, deleteRide, setStatus, refresh };
 }
 
 export function useRatePerKm() {
-  const [rate, setRate] = useState<number>(() => {
-    const raw = localStorage.getItem(RATE_KEY);
-    return raw ? Number(raw) : 2.5;
-  });
+  const { user } = useAuth();
+  const [rate, setRateState] = useState<number>(2.5);
 
   useEffect(() => {
-    localStorage.setItem(RATE_KEY, String(rate));
-  }, [rate]);
+    if (!user?.id) return;
+    let cancelled = false;
+    supabase
+      .from("user_settings")
+      .select("rate_per_km")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data?.rate_per_km != null) setRateState(Number(data.rate_per_km));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const setRate = useCallback(
+    (value: number) => {
+      setRateState(value);
+      const uid = user?.id;
+      if (!uid) return;
+      void supabase
+        .from("user_settings")
+        .upsert({ user_id: uid, rate_per_km: value }, { onConflict: "user_id" });
+    },
+    [user?.id]
+  );
 
   return [rate, setRate] as const;
 }
