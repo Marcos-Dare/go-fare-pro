@@ -14,7 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      rides: {
+        Row: {
+          client_name: string
+          completed_at: string | null
+          created_at: string
+          current_pickup_index: number | null
+          destination: Json
+          distance_pickup_km: number
+          distance_trip_km: number
+          driver_rating: number | null
+          id: string
+          legs_km: number[]
+          notes: string | null
+          origin: Json
+          passenger_rating: number | null
+          pickups: Json
+          price: number
+          rate_per_km: number
+          rating_comment: string | null
+          scheduled_at: string
+          status: string
+          total_km: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_name: string
+          completed_at?: string | null
+          created_at?: string
+          current_pickup_index?: number | null
+          destination: Json
+          distance_pickup_km?: number
+          distance_trip_km?: number
+          driver_rating?: number | null
+          id?: string
+          legs_km?: number[]
+          notes?: string | null
+          origin: Json
+          passenger_rating?: number | null
+          pickups?: Json
+          price?: number
+          rate_per_km?: number
+          rating_comment?: string | null
+          scheduled_at: string
+          status?: string
+          total_km?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_name?: string
+          completed_at?: string | null
+          created_at?: string
+          current_pickup_index?: number | null
+          destination?: Json
+          distance_pickup_km?: number
+          distance_trip_km?: number
+          driver_rating?: number | null
+          id?: string
+          legs_km?: number[]
+          notes?: string | null
+          origin?: Json
+          passenger_rating?: number | null
+          pickups?: Json
+          price?: number
+          rate_per_km?: number
+          rating_comment?: string | null
+          scheduled_at?: string
+          status?: string
+          total_km?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          rate_per_km: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          rate_per_km?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          rate_per_km?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
