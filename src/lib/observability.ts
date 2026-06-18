@@ -18,6 +18,12 @@ export function initObservability() {
         capture_pageview: true,
         capture_pageleave: true,
         person_profiles: "identified_only",
+        // Mostra o comportamento do PostHog no console em modo de desenvolvimento
+        loaded: (ph) => {
+          if (import.meta.env.DEV) ph.debug();
+        },
+        // Captura console.error e logs de erro automaticamente para o Error Tracking e Session Replay
+        enable_recording_console_log: true,
       });
       posthogReady = true;
     } catch (e) {
@@ -98,6 +104,10 @@ export function captureError(error: unknown, context?: Record<string, unknown>) 
     Sentry.captureException(error, context ? { extra: context } : undefined);
   } else {
     console.error("[observability] error", error, context);
+    // Envia o erro manualmente para o Error Tracking do PostHog
+    if (posthogReady) {
+      posthog.capture_exception(error instanceof Error ? error : new Error(String(error)), { extra: context });
+    }
   }
 }
 
