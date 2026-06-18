@@ -35,7 +35,7 @@ export default function Auth() {
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        analytics.login(data.user?.id ?? email, "password");
+        analytics.login(data.user?.id ?? email, "email");
         toast.success("Bem-vindo de volta!");
       }
       nav("/", { replace: true });
