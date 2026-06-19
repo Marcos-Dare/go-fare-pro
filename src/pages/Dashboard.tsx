@@ -26,11 +26,17 @@ export default function Dashboard() {
     [rides]
   );
   const todayEstimated = useMemo(
-    () => rides.filter((r) => isToday(r.scheduledAt)).reduce((s, r) => s + r.price, 0),
+    () =>
+      rides
+        .filter((r) => isToday(r.scheduledAt) || (r.completedAt && isToday(r.completedAt)))
+        .reduce((s, r) => s + r.price, 0),
     [rides]
   );
   const todayCompleted = useMemo(
-    () => rides.filter((r) => isToday(r.scheduledAt) && r.status === "completed").reduce((s, r) => s + r.price, 0),
+    () =>
+      rides
+        .filter((r) => r.status === "completed" && r.completedAt && isToday(r.completedAt))
+        .reduce((s, r) => s + r.price, 0),
     [rides]
   );
 

@@ -85,17 +85,6 @@ export default function ActiveRide() {
         price: ride!.price,
         pickups: ride!.pickups.length,
       });
-      // Solicita avaliações ao final da corrida
-      const driverRatingRaw = window.prompt("Avalie o motorista (1-5):", "5");
-      const driverRating = Number(driverRatingRaw);
-      if (driverRating >= 1 && driverRating <= 5) {
-        analytics.driverRated({ rideId: ride!.id, rating: driverRating });
-      }
-      const paxRatingRaw = window.prompt(`Avalie o passageiro ${ride!.clientName} (1-5):`, "5");
-      const paxRating = Number(paxRatingRaw);
-      if (paxRating >= 1 && paxRating <= 5) {
-        analytics.passengerRated({ rideId: ride!.id, passengerName: ride!.clientName, rating: paxRating });
-      }
       toast.success(`Corrida finalizada! ${formatBRL(ride!.price)}`);
       nav("/agenda");
     }
