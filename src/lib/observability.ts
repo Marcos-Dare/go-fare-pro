@@ -106,7 +106,7 @@ export function captureError(error: unknown, context?: Record<string, unknown>) 
     console.error("[observability] error", error, context);
     // Envia o erro manualmente para o Error Tracking do PostHog
     if (posthogReady) {
-      posthog.capture_exception(error instanceof Error ? error : new Error(String(error)), { extra: context });
+      posthog.captureException(error instanceof Error ? error : new Error(String(error)), { extra: context });
     }
   }
 }
